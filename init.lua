@@ -762,6 +762,7 @@ require('lazy').setup({
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
         'google-java-format', -- Used to format Java code
+        'ruff', -- Used to lint and format Python code
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -815,6 +816,7 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         java = { 'google-java-format' },
+        python = { 'ruff_format' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
