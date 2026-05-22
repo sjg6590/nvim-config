@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -151,6 +151,13 @@ vim.o.splitbelow = true
 --   and `:help lua-options-guide`
 vim.o.list = true
 vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+
+-- Default indentation settings for all languages
+-- Set tab width to 2 spaces by default
+vim.o.tabstop = 2
+vim.o.shiftwidth = 2
+vim.o.expandtab = true
+vim.o.softtabstop = 2
 
 -- Preview substitutions live, as you type!
 vim.o.inccommand = 'split'
@@ -347,6 +354,7 @@ require('lazy').setup({
         { '<leader>s', group = '[S]earch' },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>a', group = 'Cl[a]ude' },
       },
     },
   },
@@ -698,6 +706,43 @@ require('lazy').setup({
             },
           },
         },
+
+        jdtls = {
+          -- JDTLS configuration for Java development
+          settings = {
+            java = {
+              configuration = {
+                runtimes = {
+                  {
+                    name = 'JavaSE-17',
+                    path = '/usr/lib/jvm/java-17-openjdk', -- Adjust path as needed
+                  },
+                },
+              },
+              eclipse = {
+                downloadSources = true,
+              },
+              maven = {
+                downloadSources = true,
+              },
+              implementationsCodeLens = {
+                enabled = true,
+              },
+              referencesCodeLens = {
+                enabled = true,
+              },
+              references = {
+                includeDecompiledSources = true,
+              },
+              format = {
+                enabled = true,
+              },
+              saveActions = {
+                organizeImports = true,
+              },
+            },
+          },
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -716,6 +761,7 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'google-java-format', -- Used to format Java code
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -768,6 +814,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        java = { 'google-java-format' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -944,7 +991,7 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'html', 'java', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -973,12 +1020,12 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.indent_line',
+  require 'kickstart.plugins.lint',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
@@ -1011,6 +1058,87 @@ require('lazy').setup({
     },
   },
 })
+
+-- [[ Claude Code Integration ]]
+local claude_state = { buf = nil, win = nil }
+
+local function claude_open_float()
+  local width = math.floor(vim.o.columns * 0.85)
+  local height = math.floor(vim.o.lines * 0.85)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Claude Code ',
+    title_pos = 'center',
+  })
+  return buf, win
+end
+
+local function claude_toggle()
+  if claude_state.win and vim.api.nvim_win_is_valid(claude_state.win) then
+    vim.api.nvim_win_hide(claude_state.win)
+    claude_state.win = nil
+    return
+  end
+  if claude_state.buf and vim.api.nvim_buf_is_valid(claude_state.buf) then
+    local _, win = claude_open_float()
+    vim.api.nvim_win_set_buf(win, claude_state.buf)
+    claude_state.win = win
+    vim.cmd 'startinsert'
+    return
+  end
+  local buf, win = claude_open_float()
+  claude_state.buf = buf
+  claude_state.win = win
+  vim.fn.termopen('claude', {
+    cwd = vim.fn.getcwd(),
+    on_exit = function()
+      claude_state.buf = nil
+      claude_state.win = nil
+    end,
+  })
+  vim.cmd 'startinsert'
+end
+
+local function claude_send_file()
+  local path = vim.api.nvim_buf_get_name(0)
+  if path == '' then
+    vim.notify('No file to send', vim.log.levels.WARN)
+    return
+  end
+  if not (claude_state.win and vim.api.nvim_win_is_valid(claude_state.win)) then
+    claude_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, '/add ' .. path .. '\n')
+end
+
+local function claude_send_selection()
+  local s = vim.fn.getpos "'<"
+  local e = vim.fn.getpos "'>"
+  local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
+  if #lines == 0 then return end
+  lines[#lines] = lines[#lines]:sub(1, e[3])
+  lines[1] = lines[1]:sub(s[3])
+  local ft = vim.bo.filetype
+  local path = vim.api.nvim_buf_get_name(0)
+  local text = '```' .. ft .. '\n# ' .. path .. '\n' .. table.concat(lines, '\n') .. '\n```'
+  if not (claude_state.win and vim.api.nvim_win_is_valid(claude_state.win)) then
+    claude_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, text)
+end
+
+vim.keymap.set('n', '<leader>ac', claude_toggle, { desc = 'Toggle [C]laude Code' })
+vim.keymap.set('n', '<leader>af', claude_send_file, { desc = 'Send [F]ile to Claude' })
+vim.keymap.set('v', '<leader>as', claude_send_selection, { desc = '[S]end selection to Claude' })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
