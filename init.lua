@@ -67,8 +67,7 @@ Kickstart Guide:
     which is very useful when you're not exactly sure of what you're looking for.
 
   I have left several `:help X` comments throughout the init.lua
-    These are hints about where to find more information about the relevant settings,
-    plugins or Neovim features used in Kickstart.
+    These are hints about where to find more information about the relevant settings, plugins or Neovim features used in Kickstart.
 
    NOTE: Look for lines like this
 
@@ -182,7 +181,7 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
+vim.keymap.set('n', '<leader>ee', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror float' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -356,6 +355,7 @@ require('lazy').setup({
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
         { '<leader>a', group = 'Cl[a]ude' },
+        { '<leader>e', group = '[E]rror actions' },
       },
     },
   },
@@ -1126,7 +1126,9 @@ local function claude_send_selection()
   local s = vim.fn.getpos "'<"
   local e = vim.fn.getpos "'>"
   local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
-  if #lines == 0 then return end
+  if #lines == 0 then
+    return
+  end
   lines[#lines] = lines[#lines]:sub(1, e[3])
   lines[1] = lines[1]:sub(s[3])
   local ft = vim.bo.filetype
@@ -1141,6 +1143,49 @@ end
 vim.keymap.set('n', '<leader>ac', claude_toggle, { desc = 'Toggle [C]laude Code' })
 vim.keymap.set('n', '<leader>af', claude_send_file, { desc = 'Send [F]ile to Claude' })
 vim.keymap.set('v', '<leader>as', claude_send_selection, { desc = '[S]end selection to Claude' })
+
+-- [[ Error → Claude / Linter keymaps ]]
+local function claude_send_diagnostics()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  if path == '' then
+    vim.notify('No file open', vim.log.levels.WARN)
+    return
+  end
+  local diagnostics = vim.diagnostic.get(bufnr)
+  if #diagnostics == 0 then
+    vim.notify('No diagnostics in current buffer', vim.log.levels.INFO)
+    return
+  end
+  table.sort(diagnostics, function(a, b) return a.lnum < b.lnum end)
+  local severity_map = { [1] = 'ERROR', [2] = 'WARN', [3] = 'INFO', [4] = 'HINT' }
+  local parts = { 'Fix the following diagnostics in `' .. path .. '`:\n' }
+  for _, d in ipairs(diagnostics) do
+    local sev = severity_map[d.severity] or 'ERROR'
+    local src = d.source and ('[' .. d.source .. '] ') or ''
+    table.insert(parts, string.format('  Line %d: %s%s: %s', d.lnum + 1, src, sev, d.message))
+  end
+  local msg = table.concat(parts, '\n') .. '\n'
+  if not (claude_state.win and vim.api.nvim_win_is_valid(claude_state.win)) then
+    claude_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, '/add ' .. path .. '\n')
+  vim.defer_fn(function()
+    if claude_state.buf and vim.api.nvim_buf_is_valid(claude_state.buf) then
+      vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, msg)
+    end
+  end, 300)
+end
+
+vim.keymap.set('n', '<leader>ec', claude_send_diagnostics, { desc = 'Send errors to [C]laude' })
+vim.keymap.set('n', '<leader>el', function()
+  vim.lsp.buf.code_action {
+    apply = true,
+    filter = function(a)
+      return a.kind ~= nil and (vim.startswith(a.kind, 'quickfix') or vim.startswith(a.kind, 'source.fixAll'))
+    end,
+  }
+end, { desc = 'Auto-fix with [L]inter (code action)' })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
