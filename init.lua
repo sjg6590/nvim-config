@@ -1119,7 +1119,7 @@ local function claude_send_file()
   if not (claude_state.win and vim.api.nvim_win_is_valid(claude_state.win)) then
     claude_toggle()
   end
-  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, '/add ' .. path .. '\n')
+  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, 'Review @' .. path .. '\n')
 end
 
 local function claude_send_selection()
@@ -1159,7 +1159,7 @@ local function claude_send_diagnostics()
   end
   table.sort(diagnostics, function(a, b) return a.lnum < b.lnum end)
   local severity_map = { [1] = 'ERROR', [2] = 'WARN', [3] = 'INFO', [4] = 'HINT' }
-  local parts = { 'Fix the following diagnostics in `' .. path .. '`:\n' }
+  local parts = { 'Fix the following diagnostics in @' .. path .. ':\n' }
   for _, d in ipairs(diagnostics) do
     local sev = severity_map[d.severity] or 'ERROR'
     local src = d.source and ('[' .. d.source .. '] ') or ''
@@ -1169,12 +1169,7 @@ local function claude_send_diagnostics()
   if not (claude_state.win and vim.api.nvim_win_is_valid(claude_state.win)) then
     claude_toggle()
   end
-  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, '/add ' .. path .. '\n')
-  vim.defer_fn(function()
-    if claude_state.buf and vim.api.nvim_buf_is_valid(claude_state.buf) then
-      vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, msg)
-    end
-  end, 300)
+  vim.api.nvim_chan_send(vim.bo[claude_state.buf].channel, msg)
 end
 
 vim.keymap.set('n', '<leader>ec', claude_send_diagnostics, { desc = 'Send errors to [C]laude' })
