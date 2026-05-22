@@ -20,13 +20,15 @@ Back up any existing config, then clone:
 git clone https://github.com/shaungulati/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
 ```
 
-Start Neovim — [lazy.nvim](https://github.com/folke/lazy.nvim) will install all plugins automatically:
+Start Neovim — [lazy.nvim](https://github.com/folke/lazy.nvim) will install all
+plugins automatically:
 
 ```sh
 nvim
 ```
 
-Use `:Lazy` to check plugin status, `:Mason` to check LSP/tool status, `:checkhealth` to diagnose issues.
+Use `:Lazy` to check plugin status, `:Mason` to check LSP/tool status,
+`:checkhealth` to diagnose issues.
 
 ## Plugins
 
@@ -64,10 +66,11 @@ Use `:Lazy` to check plugin status, `:Mason` to check LSP/tool status, `:checkhe
 All tools are installed automatically via Mason.
 
 The Java LSP (`jdtls`) is configured with:
-- JavaSE-17 runtime
-- Download sources for Maven/Eclipse dependencies
-- Implementations and references code lens
-- Organize imports on save
+
+* JavaSE-17 runtime
+* Download sources for Maven/Eclipse dependencies
+* Implementations and references code lens
+* Organize imports on save
 
 ## Keymaps
 
@@ -123,7 +126,8 @@ The Java LSP (`jdtls`) is configured with:
 | `<leader>as` | Send visual selection to Claude (with filetype fence) |
 | `<leader>ec` | Send all buffer diagnostics to Claude for fixing |
 
-Claude Code runs inside a floating terminal (85% of screen). The session persists — toggling hides/shows the window without restarting Claude.
+Claude Code runs inside a floating terminal (85% of screen). The session
+persists — toggling hides/shows the window without restarting Claude.
 
 ### Other
 
@@ -144,9 +148,11 @@ Notable non-default settings:
 | `tabstop / shiftwidth` | `2` | 2-space indent by default |
 | `scrolloff` | `10` | Keep 10 lines above/below cursor |
 | `confirm` | `true` | Prompt to save instead of erroring on `:q` |
-| `virtual_text` | truncated to 40% width | Long inline diagnostics are trimmed |
+| `virtual_text` | max 40% width | Long inline diagnostics trimmed |
 | `have_nerd_font` | `true` | Nerd Font icons enabled everywhere |
 
 ## Extending
 
-Add custom plugins in `lua/custom/plugins/`. Any `*.lua` file placed there that returns a plugin spec will be picked up automatically once you uncomment the `{ import = 'custom.plugins' }` line near the bottom of `init.lua`.
+Add custom plugins in `lua/custom/plugins/`. Any `*.lua` file placed there
+that returns a plugin spec will be picked up automatically once you uncomment
+the `{ import = 'custom.plugins' }` line near the bottom of `init.lua`.
