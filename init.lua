@@ -355,6 +355,7 @@ require('lazy').setup({
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
         { '<leader>a', group = 'Cl[a]ude' },
+        { '<leader>u', group = 'C[u]rsor' },
         { '<leader>e', group = '[E]rror actions' },
       },
     },
@@ -1173,6 +1174,118 @@ local function claude_send_diagnostics()
 end
 
 vim.keymap.set('n', '<leader>ec', claude_send_diagnostics, { desc = 'Send errors to [C]laude' })
+
+-- [[ Cursor Agent Integration ]]
+local cursor_state = { buf = nil, win = nil }
+
+local function cursor_open_float()
+  local width = math.floor(vim.o.columns * 0.85)
+  local height = math.floor(vim.o.lines * 0.85)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Cursor Agent ',
+    title_pos = 'center',
+  })
+  return buf, win
+end
+
+local function cursor_toggle()
+  if cursor_state.win and vim.api.nvim_win_is_valid(cursor_state.win) then
+    vim.api.nvim_win_hide(cursor_state.win)
+    cursor_state.win = nil
+    return
+  end
+  if cursor_state.buf and vim.api.nvim_buf_is_valid(cursor_state.buf) then
+    local _, win = cursor_open_float()
+    vim.api.nvim_win_set_buf(win, cursor_state.buf)
+    cursor_state.win = win
+    vim.cmd 'startinsert'
+    return
+  end
+  local buf, win = cursor_open_float()
+  cursor_state.buf = buf
+  cursor_state.win = win
+  vim.fn.termopen('cursor-agent', {
+    cwd = vim.fn.getcwd(),
+    on_exit = function()
+      cursor_state.buf = nil
+      cursor_state.win = nil
+    end,
+  })
+  vim.cmd 'startinsert'
+end
+
+local function cursor_send_file()
+  local path = vim.api.nvim_buf_get_name(0)
+  if path == '' then
+    vim.notify('No file to send', vim.log.levels.WARN)
+    return
+  end
+  if not (cursor_state.win and vim.api.nvim_win_is_valid(cursor_state.win)) then
+    cursor_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[cursor_state.buf].channel, 'Review @' .. path .. '\n')
+end
+
+local function cursor_send_selection()
+  local s = vim.fn.getpos "'<"
+  local e = vim.fn.getpos "'>"
+  local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
+  if #lines == 0 then
+    return
+  end
+  lines[#lines] = lines[#lines]:sub(1, e[3])
+  lines[1] = lines[1]:sub(s[3])
+  local ft = vim.bo.filetype
+  local path = vim.api.nvim_buf_get_name(0)
+  local text = '```' .. ft .. '\n# ' .. path .. '\n' .. table.concat(lines, '\n') .. '\n```'
+  if not (cursor_state.win and vim.api.nvim_win_is_valid(cursor_state.win)) then
+    cursor_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[cursor_state.buf].channel, text)
+end
+
+local function cursor_send_diagnostics()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  if path == '' then
+    vim.notify('No file open', vim.log.levels.WARN)
+    return
+  end
+  local diagnostics = vim.diagnostic.get(bufnr)
+  if #diagnostics == 0 then
+    vim.notify('No diagnostics in current buffer', vim.log.levels.INFO)
+    return
+  end
+  table.sort(diagnostics, function(a, b) return a.lnum < b.lnum end)
+  local severity_map = { [1] = 'ERROR', [2] = 'WARN', [3] = 'INFO', [4] = 'HINT' }
+  local parts = { 'Fix the following diagnostics in @' .. path .. ':\n' }
+  for _, d in ipairs(diagnostics) do
+    local sev = severity_map[d.severity] or 'ERROR'
+    local src = d.source and ('[' .. d.source .. '] ') or ''
+    table.insert(parts, string.format('  Line %d: %s%s: %s', d.lnum + 1, src, sev, d.message))
+  end
+  local msg = table.concat(parts, '\n') .. '\n'
+  if not (cursor_state.win and vim.api.nvim_win_is_valid(cursor_state.win)) then
+    cursor_toggle()
+  end
+  vim.api.nvim_chan_send(vim.bo[cursor_state.buf].channel, msg)
+end
+
+vim.keymap.set('n', '<leader>uc', cursor_toggle, { desc = 'Toggle [C]ursor Agent' })
+vim.keymap.set('n', '<leader>uf', cursor_send_file, { desc = 'Send [F]ile to Cursor' })
+vim.keymap.set('v', '<leader>us', cursor_send_selection, { desc = '[S]end selection to Cursor' })
+vim.keymap.set('n', '<leader>eu', cursor_send_diagnostics, { desc = 'Send errors to C[u]rsor' })
+
 vim.keymap.set('n', '<leader>el', function()
   vim.lsp.buf.code_action {
     apply = true,
