@@ -11,6 +11,9 @@ Upstream kickstart.nvim changes are not listed — see the [kickstart.nvim relea
 ### Added
 - `<leader>ec` — send all current buffer diagnostics to Claude Code for fixing
 - `<leader>el` — auto-fix with linter via LSP `quickfix`/`source.fixAll` code action
+- Cursor Agent integration (`cursor-agent` CLI) under the `<leader>u` group: `<leader>uc` toggle, `<leader>uf` send file, `<leader>us` send selection, `<leader>eu` send diagnostics
+- Antigravity integration (`agy` CLI) under the `<leader>g` group: `<leader>gc` toggle, `<leader>gf` send file, `<leader>gs` send selection, `<leader>eg` send diagnostics
+- `<leader>u` (C[u]rsor) and `<leader>g` (Anti[g]ravity) which-key groups
 
 ## [2025-05-22] — Ruff + diagnostics polish
 

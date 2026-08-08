@@ -115,6 +115,8 @@ The Java LSP (`jdtls`) is configured with:
 | `<leader>q` | Open diagnostic quickfix list |
 | `<leader>ee` | Show diagnostic float |
 | `<leader>ec` | Send buffer diagnostics to Claude Code |
+| `<leader>eu` | Send buffer diagnostics to Cursor Agent |
+| `<leader>eg` | Send buffer diagnostics to Antigravity |
 | `<leader>el` | Auto-fix with linter (LSP code action) |
 
 ### Claude Code Integration
@@ -128,6 +130,28 @@ The Java LSP (`jdtls`) is configured with:
 
 Claude Code runs inside a floating terminal (85% of screen). The session
 persists — toggling hides/shows the window without restarting Claude.
+
+### Cursor Agent Integration
+
+| Key | Action |
+| :-- | :----- |
+| `<leader>uc` | Toggle Cursor Agent floating terminal |
+| `<leader>uf` | Send current file to Cursor (`Review @<path>`) |
+| `<leader>us` | Send visual selection to Cursor (with filetype fence) |
+| `<leader>eu` | Send all buffer diagnostics to Cursor for fixing |
+
+Uses the `cursor-agent` CLI, mirroring the Claude Code setup.
+
+### Antigravity Integration
+
+| Key | Action |
+| :-- | :----- |
+| `<leader>gc` | Toggle Antigravity floating terminal |
+| `<leader>gf` | Send current file to Antigravity (`Review @<path>`) |
+| `<leader>gs` | Send visual selection to Antigravity (with filetype fence) |
+| `<leader>eg` | Send all buffer diagnostics to Antigravity for fixing |
+
+Uses the `agy` CLI, mirroring the Claude Code and Cursor setups.
 
 ### Other
 
